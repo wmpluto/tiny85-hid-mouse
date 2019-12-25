@@ -30,35 +30,71 @@ publish any hardware using these IDs! This is for demonstration only!
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
 
-PROGMEM const char usbHidReportDescriptor[52] = { /* USB report descriptor, size must match usbconfig.h */
-    0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x09, 0x02,                    // USAGE (Mouse)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x09, 0x01,                    //   USAGE (Pointer)
-    0xA1, 0x00,                    //   COLLECTION (Physical)
-    0x05, 0x09,                    //     USAGE_PAGE (Button)
-    0x19, 0x01,                    //     USAGE_MINIMUM
-    0x29, 0x03,                    //     USAGE_MAXIMUM
-    0x15, 0x00,                    //     LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //     LOGICAL_MAXIMUM (1)
-    0x95, 0x03,                    //     REPORT_COUNT (3)
-    0x75, 0x01,                    //     REPORT_SIZE (1)
-    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
-    0x95, 0x01,                    //     REPORT_COUNT (1)
-    0x75, 0x05,                    //     REPORT_SIZE (5)
-    0x81, 0x03,                    //     INPUT (Const,Var,Abs)
-    0x05, 0x01,                    //     USAGE_PAGE (Generic Desktop)
-    0x09, 0x30,                    //     USAGE (X)
-    0x09, 0x31,                    //     USAGE (Y)
-    0x09, 0x38,                    //     USAGE (Wheel)
-    0x15, 0x81,                    //     LOGICAL_MINIMUM (-127)
-    0x25, 0x7F,                    //     LOGICAL_MAXIMUM (127)
-    0x75, 0x08,                    //     REPORT_SIZE (8)
-    0x95, 0x03,                    //     REPORT_COUNT (3)
-    0x81, 0x06,                    //     INPUT (Data,Var,Rel)
-    0xC0,                          //   END_COLLECTION
-    0xC0,                          // END COLLECTION
+const PROGMEM unsigned char mouse_usbHidReportDescriptor[] = { /* USB report descriptor */
+	0x05, 0x01,										 // USAGE_PAGE (Generic Desktop)
+	0x09, 0x02,										 // USAGE (Mouse)
+	0xa1, 0x01,										 // COLLECTION (Application)
+	0x09, 0x01,										 //		USAGE_PAGE (Pointer)
+	0xa1, 0x00,										 //		COLLECTION (Physical)
+	0x05, 0x09,										 //		USAGE_PAGE (Button)
+	0x19, 0x01,										 //		USAGE_MINIMUM (Button 1)
+	0x29, 0x03,										 //		USAGE_MAXIMUM (Button 3)
+	0x15, 0x00,										 //		LOGICAL_MINIMUM (0)
+	0x25, 0x01,										 //		LOGICAL_MAXIMUM (1)
+	0x95, 0x03,										 //		REPORT_COUNT (3)
+	0x75, 0x01,										 //		REPORT_SIZE (1)
+	0x81, 0x02,										 //		INPUT (Data,Var,Abs)
+	0x95, 0x01,										 //		REPORT_COUNT (1)
+	0x75, 0x05,										 //		REPORT_SIZE (5)
+	0x81, 0x01,										 //		Input(Cnst)
+	0x05, 0x01,										 //		USAGE_PAGE(Generic Desktop)
+	0x09, 0x30,										 //		USAGE(X)
+	0x09, 0x31,										 //		USAGE(Y)
+	0x15, 0x81,										 //		LOGICAL_MINIMUM (-127)
+	0x25, 0x7f,										 //		LOGICAL_MAXIMUM (127)
+	0x75, 0x08,										 //		REPORT_SIZE (8)
+	0x95, 0x02,										 //		REPORT_COUNT (2)
+	0x81, 0x06,										 //		INPUT (Data,Var,Rel)
+	0x09, 0x38,											//	 Usage (Wheel)
+	0x95, 0x01,											//	 Report Count (1),
+	0x81, 0x06,											//	 Input (Data, Variable, Relative)
+	0xc0,														// END_COLLECTION
+	0xc0													 // END_COLLECTION
 };
+
+
+#define USBDESCR_DEVICE					1
+
+const unsigned char usbDescrDevice[] PROGMEM = {		/* USB device descriptor */
+	18,					/* sizeof(usbDescrDevice): length of descriptor in bytes */
+	USBDESCR_DEVICE,		/* descriptor type */
+	0x01, 0x01, /* USB version supported */
+	USB_CFG_DEVICE_CLASS,
+	USB_CFG_DEVICE_SUBCLASS,
+	0,					/* protocol */
+	8,					/* max packet size */
+	USB_CFG_VENDOR_ID,	/* 2 bytes */
+	USB_CFG_DEVICE_ID,	/* 2 bytes */
+	USB_CFG_DEVICE_VERSION, /* 2 bytes */
+	#if USB_CFG_VENDOR_NAME_LEN
+	1,					/* manufacturer string index */
+	#else
+	0,					/* manufacturer string index */
+	#endif
+	#if USB_CFG_DEVICE_NAME_LEN
+	2,					/* product string index */
+	#else
+	0,					/* product string index */
+	#endif
+	#if USB_CFG_SERIAL_NUMBER_LENGTH
+	3,					/* serial number string index */
+	#else
+	0,					/* serial number string index */
+	#endif
+	1,					/* number of configurations */
+};
+
+
 /* This is the same report descriptor as seen in a Logitech mouse. The data
  * described by this descriptor consists of 4 bytes:
  *      .  .  .  .  . B2 B1 B0 .... one byte with mouse button states
@@ -88,13 +124,36 @@ static void advanceCircleByFixedAngle(void)
 char    d;
 
 #define DIVIDE_BY_64(val)  (val + (val > 0 ? 32 : -32)) >> 6    /* rounding divide */
-    reportBuffer.dx = d = DIVIDE_BY_64(cosinus);
+    reportBuffer.dx = 20;
     sinus += d;
-    reportBuffer.dy = d = DIVIDE_BY_64(sinus);
+    reportBuffer.dy = 20;
     cosinus -= d;
 }
 
 /* ------------------------------------------------------------------------- */
+
+	uchar	usbFunctionDescriptor(struct usbRequest *rq) {
+		if ((rq->bmRequestType & USBRQ_TYPE_MASK) != USBRQ_TYPE_STANDARD) {
+			return 0;
+		}
+
+		if (rq->bRequest == USBRQ_GET_DESCRIPTOR) {
+			// USB spec 9.4.3, high byte is descriptor type
+			switch (rq->wValue.bytes[1]) {
+				case USBDESCR_DEVICE:
+				usbMsgPtr = usbDescrDevice;
+				return sizeof(usbDescrDevice);
+				break;
+
+				case USBDESCR_HID_REPORT:
+				usbMsgPtr = mouse_usbHidReportDescriptor;
+				return sizeof(mouse_usbHidReportDescriptor);
+				break;
+			}
+		}
+
+		return 0;
+	}
 
 usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
@@ -120,7 +179,9 @@ usbRequest_t    *rq = (void *)data;
     }
     return 0;   /* default for not implemented requests: return no data back to host */
 }
-
+	
+// report frequency set to default of 50hz
+#define DIGIMOUSE_DEFAULT_REPORT_INTERVAL 20
 /* ------------------------------------------------------------------------- */
 
 int __attribute__((noreturn)) main(void)
@@ -147,13 +208,26 @@ uchar   i;
     usbDeviceConnect();
     sei();
     DBG1(0x01, 0, 0);       /* debug output: main loop starts */
+	uint16_t ii = 0x0;
+	DDRB |= 1 << 1;
+	PORTB |= 1 << 1;
     for(;;){                /* main event loop */
         DBG1(0x02, 0, 0);   /* debug output: main loop iterates */
         wdt_reset();
         usbPoll();
+		_delay_ms(DIGIMOUSE_DEFAULT_REPORT_INTERVAL);
+		ii++;
         if(usbInterruptIsReady()){
+			reportBuffer.dx = 0;
+			
             /* called after every poll of the interrupt endpoint */
-            advanceCircleByFixedAngle();
+            if (ii % 0x4000 == 0) {
+				PORTB |= 1<<1;
+				_delay_ms(5);
+				PORTB &= ~(1<<1);
+				
+				reportBuffer.dx = ((ii / 0x4000) % 2) ? 2 : -2;
+			} 
             DBG1(0x03, 0, 0);   /* debug output: interrupt report prepared */
             usbSetInterrupt((void *)&reportBuffer, sizeof(reportBuffer));
         }
